@@ -21,21 +21,26 @@ DataCollection_Preprocessing
 - Preprocessing_fun.py  
     - Module containing the preprocessing pipeline functions.  
 - generateBackgroundData.py  
-    - Script that queries InfluxDB for background data and stores it as a dictionary in a pickle file.  
+    - Script that queries InfluxDB for background data and stores it as a dictionary in a pickle file.
+    - Add password in this script.  
 - usgsEarthquakeDataGrabber.py  
-    - Script that queries InfluxDB for earthquake event data and stores it as a dictionary in a pickle file.  
+    - Script that queries InfluxDB for earthquake event data and stores it as a dictionary in a pickle file.
+    - Add password in this script. 
 - PSD_Background_processor.py  
     - Processes background data and outputs a dictionary of PSDs for each window.  
 - PSD_Earthquake_processor.py  
     - Processes earthquake event data and outputs a dictionary of PSDs for each window.  
 - Exported_Paros_Data  
     - Output folder where all pickle files are stored.  
+- Makefile
+    - The Makefile automates the preprocessing pipeline for training data. Running make will execute Preprocessing scripts.
 
 Eval  
 - cnn_model.py  
     - PyTorch class defining the CNN model.  
 - DataQueryUtils.py  
-    - Functions for live and range queries from InfluxDB, formatting the data for model evaluation.  
+    - Functions for live and range queries from InfluxDB, formatting the data for model evaluation.
+    - Add password in this script. 
 - Preprocessing_fun.py  
     - Preprocessing pipeline functions.  
 - TestModel_DataRange.ipynb  
@@ -91,6 +96,15 @@ ModelTraining
 3. **Evaluation:**  
     - For live evaluation on incoming data, run the live evaluation script.  
     - For evaluation on a specific data range, run the data range evaluation script.  
+
+**File run order for training:**
+    - Run the Makefile to execute the preprocessing scripts by typing make in the terminal.
+        - generateBackgroundData.py
+        - usgsEarthquakeDataGrabber.py
+        - PSD_Background_processor.py
+        - PSD_Earthquake_processor.py
+    - CNN1D.ipynb 
+
 
 ---
 
