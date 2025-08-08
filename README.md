@@ -98,14 +98,12 @@ ModelTraining
     - For evaluation on a specific data range, run the data range evaluation script.  
 
 **File run order for training:**
-    - Run the Makefile to execute the preprocessing scripts by typing make in the terminal.
-        - generateBackgroundData.py
-        - usgsEarthquakeDataGrabber.py
-        - PSD_Background_processor.py
-        - PSD_Earthquake_processor.py
-    - CNN1D.ipynb 
-
-
+- Run the `Makefile` to execute the preprocessing scripts by typing `make` in the terminal:
+  - `generateBackgroundData.py`
+  - `usgsEarthquakeDataGrabber.py`
+  - `PSD_Background_processor.py`
+  - `PSD_Earthquake_processor.py`
+- `CNN1D.ipynb`
 ---
 
 Ethan Gelfand, 8/7/2025
