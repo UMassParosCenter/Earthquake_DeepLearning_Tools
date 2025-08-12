@@ -5,7 +5,7 @@ This repository contains a complete suite of scripts and utilities for **trainin
 The workflow covers:
 1. **Data collection and preprocessing**
 2. **PSD computation and export**
-3. **Model training** (1D CNN architecture)
+3. **Model training** (2D CNN architecture)
 4. **Model evaluation** (cross-validation)
 5. **Real-time / live stream inference**
 6. **Logging & exporting predictions**
@@ -44,7 +44,8 @@ Eval
 - Preprocessing_fun.py  
     - Preprocessing pipeline functions.  
 - TestModel_DataRange.ipynb  
-    - Notebook for evaluating the model on a specific data range.  
+    - Notebook for evaluating the model on a specific data range.
+    - Add password in this script. 
 - LiveTestModel.ipynb  
     - Notebook for evaluating the model on continuous live data.  
 - LoggedData  
@@ -58,8 +59,8 @@ ModelTraining
 - LoadData.py  
     - Functions for loading fold data splits to train other models on the same dataset as the original CNN.  
     - Useful for ensemble models where validation is performed on unused data.  
-- CNN1D.ipynb  
-    - Notebook for training the 1D CNN model.  
+- CNN2D.ipynb  
+    - Notebook for training the 2D CNN model.  
 - fold_outputs  
     - fold_1  
         - CNNmodel.pth  
@@ -103,7 +104,7 @@ ModelTraining
   - `usgsEarthquakeDataGrabber.py`
   - `PSD_Background_processor.py`
   - `PSD_Earthquake_processor.py`
-- `CNN1D.ipynb`
+- `CNN2D.ipynb`
 ---
 
-Ethan Gelfand, 8/7/2025
+Ethan Gelfand, 8/12/2025

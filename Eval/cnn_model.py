@@ -1,64 +1,56 @@
 """
-Script: earthquake_cnn_model.py
+EarthquakeCNN2d Model Definition for Infrasound PSD Classification
+------------------------------------------------------------------
 
-This script defines a 1D Convolutional Neural Network (CNN) architecture using PyTorch for
-binary classification of time-series data, specifically designed for distinguishing between
-earthquake and background infrasound signals.
+This script defines a 2D Convolutional Neural Network architecture tailored
+for classifying earthquake vs background events using Power Spectral Density
+(PSD) features extracted from infrasound waveform data.
 
-Architecture Overview:
-----------------------
-- The model expects 1D input signals (e.g., Welch PSD vectors or raw waveforms) of length `input_length`.
-- Input shape: (batch_size, input_length)
-- The model includes two convolutional blocks followed by fully connected layers.
+Key Components:
+---------------
+- ConvBlock2d: A reusable convolutional block including convolution, batch
+  normalization, ReLU activation, max pooling, and dropout for regularization.
+- EarthquakeCNN2d: The main CNN model consisting of two ConvBlock2d layers,
+  followed by fully connected layers that output class logits for binary
+  classification (earthquake or background).
 
-Main Components:
-----------------
-1. `ConvBlock`:
-   - Conv1D → BatchNorm → ReLU → MaxPool → Dropout
-   - Used to extract local features from 1D signals.
+Features:
+---------
+- Automatic padding calculation to preserve spatial dimensions during convolution.
+- Dynamic computation of the flattened feature vector size to accommodate varying
+  input PSD dimensions (windows x frequency bins).
+- Uses ReLU activations and dropout for effective training and generalization.
+- Outputs raw logits for subsequent use with softmax and cross-entropy loss.
 
-2. `EarthquakeCNN`:
-   - Two sequential `ConvBlock`s (with kernel sizes 7 and 5).
-   - Fully connected layers:
-     - Flatten → FC (128) → ReLU → FC (64) → ReLU → FC (2)
-   - Dynamically calculates the input size of the first fully connected layer based on
-     the input length after convolution and pooling.
+Inputs and Outputs:
+-------------------
+- Input: 4D tensor with shape (batch_size, 1, windows, freq_bins), representing PSD
+  features as a 2D image with one channel.
+- Output: Tensor with shape (batch_size, 2) containing logits for the two classes.
 
-Outputs:
---------
-- Final output shape: (batch_size, 2)
-  - Represents logits for 2 classes: `[earthquake, background]`
-
-Usage:
-------
-- Instantiate the model with:
-    `model = EarthquakeCNN(input_length=<your_input_length>)`
-- Feed normalized tensors to `model(input_tensor)` for inference.
-
-Dependencies:
--------------
-- torch
-- torch.nn
-
-Note:
------
-- Use CrossEntropyLoss for training since the model outputs logits.
-- Ensure input tensors are properly normalized and shaped as (batch_size, input_length).
-
-Ethan Gelfand 08/06/2025
+Author: Ethan Gelfand
+Date: 08/12/2025
 """
 
 import torch
 import torch.nn as nn
 
-#--- model definition ---
-class ConvBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, p=4, pool_kernel=2):
+# --- Model Definition ---
+class ConvBlock2d(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size, pool_kernel=2, padding=None):
         super().__init__()
-        self.conv = nn.Conv1d(in_channels, out_channels, kernel_size, padding=kernel_size//2)
-        self.bn = nn.BatchNorm1d(out_channels)
+        
+        # Automatically compute padding if not given
+        if padding is None:
+            if isinstance(kernel_size, tuple):
+                padding = tuple(k // 2 for k in kernel_size)
+            else:
+                padding = kernel_size // 2
+        
+        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size, padding=padding)
+        self.bn = nn.BatchNorm2d(out_channels)
         self.relu = nn.ReLU()
-        self.pool = nn.MaxPool1d(kernel_size=2, stride=2)
+        self.pool = nn.MaxPool2d(kernel_size=pool_kernel, stride=pool_kernel)
         self.dropout = nn.Dropout(0.3)
 
     def forward(self, x):
@@ -68,31 +60,34 @@ class ConvBlock(nn.Module):
         x = self.pool(x)
         x = self.dropout(x)
         return x
-        
-class EarthquakeCNN(nn.Module):
-    def __init__(self, input_length=1133):
+
+
+class EarthquakeCNN2d(nn.Module):
+    def __init__(self, input_shape):
         super().__init__()
-        self.conv1 = ConvBlock(in_channels=1, out_channels=16, kernel_size=7)
-        self.conv2 = ConvBlock(in_channels=16, out_channels=16, kernel_size=5)
-        # Dynamically calculate flattened size
-        self.flatten_dim = self._get_flattened_size(input_length)
-        self.fc1 = nn.Linear(self.flatten_dim, 128) # Adjust input size based on flattened output
-        self.fc_hidden = nn.Linear(128, 64)
-        self.fc2 = nn.Linear(64, 2)  # 2 output classes: Earthquake and Background
+        # input_shape: (windows, freq_bins)
+        self.conv1 = ConvBlock2d(1, 16, kernel_size=(5, 5))
+        self.conv2 = ConvBlock2d(16, 32, kernel_size=(3, 5))  # more time context
         
-    def _get_flattened_size(self, input_length):
+        # Calculate flattened feature size dynamically
+        self.flatten_dim = self._get_flattened_size(input_shape)
+
+        self.fc1 = nn.Linear(self.flatten_dim, 128)
+        self.fc_hidden = nn.Linear(128, 64)
+        self.fc2 = nn.Linear(64, 2)
+
+    def _get_flattened_size(self, input_shape):
         with torch.no_grad():
-            dummy_input = torch.zeros(1, 1, input_length)
-            x = self.conv1(dummy_input)
+            dummy = torch.zeros(1, 1, *input_shape)
+            x = self.conv1(dummy)
             x = self.conv2(x)
             return x.view(1, -1).shape[1]
-    
-    def forward(self, X):
-        X = X.unsqueeze(1)  # Add channel dimension: (batch_size, 1, features)
-        X = self.conv1(X) 
-        X = self.conv2(X) 
-        X = X.view(X.size(0), -1) # Flatten
-        X = torch.relu(self.fc1(X)) # (Batch_size, 128)
-        X = torch.relu(self.fc_hidden(X))
-        X = self.fc2(X) # (Batch_size, 2)
-        return X
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.conv2(x)
+        x = x.view(x.size(0), -1)
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc_hidden(x))
+        x = self.fc2(x)
+        return x

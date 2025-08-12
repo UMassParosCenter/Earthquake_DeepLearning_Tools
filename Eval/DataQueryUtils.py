@@ -1,37 +1,45 @@
 """
-Paros Infrasound PSD Feature Extraction for Machine Learning
-============================================================
+Paros Infrasound PSD Feature Extraction Module for Earthquake Detection
+----------------------------------------------------------------------
 
-This script provides functionality for querying and preprocessing waveform data 
-from a Paros infrasound sensor for use in machine learning models. It includes 
-two main functions:
+This module provides functions to query, preprocess, and extract Power Spectral
+Density (PSD) features from raw waveform data collected by Paros infrasound sensors.
 
+Functions:
+----------
 1. live_stream_query_for_model():
-   - Queries the most recent 60-second waveform segment from a Paros sensor via InfluxDB.
-   - Resamples and preprocesses the waveform.
-   - Splits each 60-second segment into eleven 10-second windows with 50% overlap.
-   - Computes Welch PSD for each window and stacks them into a flattened feature vector.
-   - Normalizes the flattened PSD vector using the provided mean and standard deviation 
-     calculated from training data.
+   - Queries the most recent 60-second waveform segment from the Paros sensor via InfluxDB.
+   - Resamples and preprocesses the raw waveform to a target sampling rate.
+   - Splits the 60-second segment into eleven overlapping 10-second windows.
+   - Computes the Welch PSD for each window and stacks them into a 2D PSD feature array.
+   - Applies log scaling and optional z-score normalization using provided mean and std.
+   - Returns the normalized PSD feature array for immediate model inference.
 
 2. psd_vectors_from_range():
-   - Iterates through a user-defined date/time range in 60-second increments.
-   - For each segment, performs the same resampling, preprocessing, PSD computation, 
-     windowing, flattening, and normalization as above.
-   - Returns a list of timestamped normalized feature vectors for batch inference or analysis.
+   - Iterates over a user-defined datetime range in 60-second increments.
+   - For each 60-second segment, performs identical preprocessing and PSD extraction as above.
+   - Returns a list of timestamped PSD feature arrays suitable for batch inference or analysis.
 
-These functions rely on custom utilities:
-- query_influx_data: for data retrieval from InfluxDB
-- preprocess: for waveform preprocessing
-- safe_resample: for robust resampling
-- welch_psd: for power spectral density calculation
+Inputs:
+-------
+- Sensor and database connection parameters.
+- Raw waveform data queried from InfluxDB.
+- Optional normalization parameters (mean, std) computed from training data.
 
-The output vectors are designed as inputs for trained machine learning models, such as
-earthquake event classifiers.
+Outputs:
+--------
+- Normalized PSD feature arrays shaped (windows x frequency_bins) ready for
+  input into machine learning models for earthquake detection.
 
-Ethan Gelfand, 08/06/2025
+Dependencies:
+-------------
+- NumPy
+- datetime
+- Custom utilities: paros_data_grabber.query_influx_data, Preprocessing_fun (preprocess, welch_psd, safe_resample)
+
+Author: Ethan Gelfand
+Date: 08/12/2025
 """
-
 
 import numpy as np
 from datetime import datetime, timedelta, timezone
@@ -41,7 +49,7 @@ from Preprocessing_fun import preprocess, welch_psd, safe_resample
 def live_stream_query_for_model(
     sensor_id="141929",
     box_id="parost2",
-    password="*****", # Replace with actual password
+    password="******", # Replace with actual password
     fs_in=20,
     fs_out=100,
     total_duration=60,
@@ -107,7 +115,7 @@ def live_stream_query_for_model(
             psd_list.append(pxx)
 
         psd_array = np.vstack(psd_list)
-        psd_vector = psd_array.flatten()
+        psd_vector = psd_array
 
         log_pxx = np.log10(psd_vector + 1e-10)
         if mean is not None and std is not None:
@@ -190,7 +198,7 @@ def psd_vectors_from_range(
                 psd_list.append(pxx)
 
             psd_array = np.vstack(psd_list)
-            psd_vector = psd_array.flatten()
+            psd_vector = psd_array
 
             log_pxx = np.log10(psd_vector + 1e-10)
             z_pxx = (log_pxx - mean) / (std + 1e-6) if mean is not None else log_pxx
