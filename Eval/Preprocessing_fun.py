@@ -32,20 +32,21 @@ Ethan Gelfand, 08/06/2025
 """
 
 import numpy as np
-import scipy.signal as signal
+from scipy.signal import windows, welch, filtfilt, butter, resample_poly
+
 
 ## --- Functions for processing waveform data --- ##
 def dc_block(x, a=0.999):
     b = [1, -1]
     a_coeffs = [1, -a]
-    return signal.filtfilt(b, a_coeffs, x)
+    return filtfilt(b, a_coeffs, x)
 
 def preprocess(x, fs):
     x = dc_block(x)
     low_cutoff = 0.1
     Wn = low_cutoff / (fs / 2)
-    b, a = signal.butter(4, Wn, btype='high')
-    return signal.filtfilt(b, a, x)
+    b, a = butter(4, Wn, btype='high')
+    return filtfilt(b, a, x)
 
 def welch_psd(x, fs):
     window_duration = 5
@@ -53,8 +54,8 @@ def welch_psd(x, fs):
     noverlap = int(nperseg * 0.75)
     nfft = int(2 ** np.ceil(np.log2(nperseg)))
 
-    window = signal.windows.hann(nperseg)
-    f, pxx = signal.welch(x, fs, window=window, noverlap=noverlap, nfft=nfft)
+    window = windows.hann(nperseg)
+    f, pxx = welch(x, fs, window=window, noverlap=noverlap, nfft=nfft, detrend=False)
 
     keep = f <= 10
     return pxx[keep], f[keep]
@@ -62,7 +63,7 @@ def welch_psd(x, fs):
 def safe_resample(x, fs_in, fs_out):
     x = dc_block(x)
     fc = 0.9 * min(fs_in, fs_out) / 2
-    b_lp, a_lp = signal.butter(4, fc / (fs_in / 2), btype='low')
-    x = signal.filtfilt(b_lp, a_lp, x)
-    y = signal.resample_poly(x, fs_out, fs_in)
+    b_lp, a_lp = butter(4, fc / (fs_in / 2), btype='low')
+    x = filtfilt(b_lp, a_lp, x)
+    y = resample_poly(x, fs_out, fs_in)
     return y
